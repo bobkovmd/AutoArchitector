@@ -1,0 +1,75 @@
+# .gitlab-ci.yml — Daily Infra Diagram Pipeline
+# Triggered: daily at 06:00 UTC (via GitLab scheduled pipeline) or manually.
+# Result: diagram.html published to GitLab Pages.
+#
+# Required CI variables (Settings → CI/CD → Variables):
+#   GITLAB_TOKEN   — GitLab personal/project token with read_repository scope
+#   YC_IAM_TOKEN   — Yandex Cloud IAM token for a service account
+#   YC_FOLDER_ID   — Yandex Cloud folder ID
+
+stages:
+  - build
+  - publish
+
+variables:
+  PYTHON_VERSION: "3.12"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: pip-$PYTHON_VERSION
+  paths:
+    - .cache/pip
+
+build-infra-diagram:
+  stage: build
+  image: python:${PYTHON_VERSION}-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq curl graphviz
+    # Install Yandex Cloud CLI
+    - curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -i /usr/local -n
+    - yc config set token "${YC_IAM_TOKEN}"
+    - yc config set folder-id "${YC_FOLDER_ID}"
+    # Python dependencies
+    - pip install --quiet python-gitlab pyyaml graphviz
+  script:
+    - python main.py --config config/sources.yaml --output output/
+    - echo "=== Generated artifacts ==="
+    - ls -lh output/
+  artifacts:
+    name: "infra-diagram-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - output/graph.json
+      - output/diagram.html
+      - output/diagram.svg
+    expire_in: 90 days
+
+pages:
+  stage: publish
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  script:
+    - mkdir -p public
+    - cp output/diagram.html public/index.html
+    - cp output/diagram.svg public/diagram.svg
+    - |
+      printf '{"generated_at":"%s","pipeline_id":"%s","commit":"%s"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        "$CI_PIPELINE_ID" \
+        "$CI_COMMIT_SHORT_SHA" > public/meta.json
+  artifacts:
+    paths:
+      - public
+  environment:
+    name: production
+    url: $CI_PAGES_URL
+  needs:
+    - build-infra-diagram
+
+# Schedule: configure in GitLab UI — Settings → CI/CD → Schedules
+# Recommended: daily at 06:00 UTC (0 6 * * *)
