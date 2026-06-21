@@ -1,0 +1,111 @@
+# examples/acl/rules.yaml
+#
+# Canonical ACL rule format for AutoArchitector.
+# This file is the reference example — normalizers/acl.py parses exactly this structure.
+#
+# Each rule = one allowed traffic flow between two named services.
+# "from" and "to" are service identifiers that must match names used
+# in Kubernetes NetworkPolicy selectors or Yandex Cloud VM names.
+#
+# Format spec:
+#   from:         str  — source service/workload name
+#   to:           str  — destination service/workload name
+#   protocol:     str  — TCP | UDP | ICMP | ANY  (default: TCP)
+#   ports:        list[int|str]  — destination ports (can be ranges: "8080-8090")
+#   description:  str  — human-readable explanation shown on diagram arrow
+#   environment:  str  — prod | staging | test | dev  (optional, used for filtering)
+#   tags:         list[str]  — optional, for grouping/filtering in the rendered diagram
+
+rules:
+  # ── Frontend → Backend ───────────────────────────────────────────────────────
+  - from: frontend
+    to: api-gateway
+    protocol: TCP
+    ports: [443]
+    description: "HTTPS user requests from browser via ingress"
+    environment: prod
+    tags: [public, ingress]
+
+  # ── Backend services ─────────────────────────────────────────────────────────
+  - from: api-gateway
+    to: payments-service
+    protocol: TCP
+    ports: [8080]
+    description: "Payment initiation requests"
+    environment: prod
+    tags: [internal]
+
+  - from: api-gateway
+    to: user-service
+    protocol: TCP
+    ports: [8080]
+    description: "User profile and auth lookups"
+    environment: prod
+    tags: [internal]
+
+  - from: payments-service
+    to: billing-db
+    protocol: TCP
+    ports: [5432]
+    description: "Payments write to billing Postgres"
+    environment: prod
+    tags: [internal, db]
+
+  - from: user-service
+    to: users-db
+    protocol: TCP
+    ports: [5432]
+    description: "User profile reads and writes"
+    environment: prod
+    tags: [internal, db]
+
+  # ── Async / messaging ────────────────────────────────────────────────────────
+  - from: payments-service
+    to: kafka
+    protocol: TCP
+    ports: [9092]
+    description: "Payment events published to Kafka topic payments.completed"
+    environment: prod
+    tags: [async, events]
+
+  - from: notification-service
+    to: kafka
+    protocol: TCP
+    ports: [9092]
+    description: "Subscribes to payments.completed — sends email/SMS"
+    environment: prod
+    tags: [async, events]
+
+  # ── Observability ────────────────────────────────────────────────────────────
+  - from: payments-service
+    to: prometheus
+    protocol: TCP
+    ports: [9090]
+    description: "Prometheus scrapes /metrics endpoint"
+    environment: prod
+    tags: [observability]
+
+  - from: user-service
+    to: prometheus
+    protocol: TCP
+    ports: [9090]
+    description: "Prometheus scrapes /metrics endpoint"
+    environment: prod
+    tags: [observability]
+
+  # ── External dependencies ────────────────────────────────────────────────────
+  - from: payments-service
+    to: payment-gateway-external
+    protocol: TCP
+    ports: [443]
+    description: "Calls external payment provider API (Stripe/YooMoney)"
+    environment: prod
+    tags: [external, egress]
+
+  - from: notification-service
+    to: smtp-relay
+    protocol: TCP
+    ports: [587]
+    description: "Sends transactional email via SMTP relay"
+    environment: prod
+    tags: [external, egress]

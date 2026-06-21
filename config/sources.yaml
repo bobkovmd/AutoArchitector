@@ -1,0 +1,41 @@
+# config/sources.yaml
+#
+# AutoArchitector — source configuration example.
+# Copy this file, fill in real values, and point --config to it.
+# All sensitive values (tokens, IDs) should be passed via environment variables.
+
+# ── Kubernetes NetworkPolicy source ─────────────────────────────────────────
+kubernetes:
+  gitlab:
+    url: https://gitlab.example.com          # your GitLab instance URL
+    token_env: GITLAB_TOKEN                  # env var holding the token
+    project_id: 123                          # or: project_path: org/infra-repo
+    network_policy_folders:
+      - k8s/network-policies/prod
+      - k8s/network-policies/staging
+      - k8s/network-policies/test
+  ref: main                                  # git branch / tag to read from
+
+# ── ACL source ───────────────────────────────────────────────────────────────
+acl:
+  gitlab:
+    url: https://gitlab.example.com
+    token_env: GITLAB_TOKEN
+    project_id: 456                          # or: project_path: org/acl-repo
+    folder: acl/rules                        # root folder to scan recursively
+    file_extensions: [.yaml, .yml, .json]    # extensions to process
+  ref: main
+
+# ── Yandex Cloud Security Groups ─────────────────────────────────────────────
+cloud:
+  provider: yandex_cloud
+  folder_id: b1gxxxxxxxxxxxxxx               # Yandex Cloud folder ID
+  token_env: YC_IAM_TOKEN                    # env var holding the IAM token
+
+# ── Output options ───────────────────────────────────────────────────────────
+output:
+  directory: output/
+  formats: [html, svg, json]                 # which renderers to run
+  environment_filter: prod                   # prod | staging | test | null (= all)
+  # diagram title shown in the HTML viewer
+  title: "Infrastructure & Security Diagram"
