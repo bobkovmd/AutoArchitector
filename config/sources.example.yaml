@@ -1,0 +1,21 @@
+project_name: example-landscape
+repositories:
+  - name: service-a
+    type: java
+    path: ../service-a
+    origin: https://github.com/your-org/service-a
+  - name: service-b
+    type: typescript
+    path: ../service-b
+    origin: https://github.com/your-org/service-b
+kubernetes:
+  manifests_path: ../platform/k8s
+  network_policies:
+    - ../platform/k8s/network-policies/test
+    - ../platform/k8s/network-policies/demo
+    - ../platform/k8s/network-policies/prod
+cloud:
+  provider: yandex_cloud
+  topology_file: ./examples/sample-topology.json
+output:
+  render_svg: false

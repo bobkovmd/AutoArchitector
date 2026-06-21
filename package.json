@@ -1,0 +1,11 @@
+{
+  "name": "autoarchitector",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "render": "mmdc -i output/network-topology.mmd -o output/network-topology.svg && mmdc -i output/service-architecture.mmd -o output/service-architecture.svg"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "11.6.0"
+  }
+}

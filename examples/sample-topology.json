@@ -1,0 +1,19 @@
+{
+  "provider": "yandex_cloud",
+  "networks": [
+    {
+      "name": "prod-vpc",
+      "subnets": ["prod-a", "prod-b"]
+    }
+  ],
+  "services": [
+    {
+      "name": "alb",
+      "type": "load-balancer"
+    },
+    {
+      "name": "managed-postgresql",
+      "type": "database"
+    }
+  ]
+}
