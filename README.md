@@ -1,54 +1,60 @@
 # AutoArchitector
 
-Local-first pipeline for transforming service source code, Kubernetes NetworkPolicy, and cloud/network metadata into architecture artifacts:
+Локальный pipeline для преобразования исходного кода сервисов, Kubernetes NetworkPolicy и метаданных облачной инфраструктуры в архитектурные артефакты:
 
-- sequence flows
-- architecture diagrams
-- DB model/schema views
-- service-resource / network topology maps
+- sequence flow диаграммы
+- архитектурные диаграммы
+- модель/схема БД
+- сервисно-ресурсная модель / сетевая топология
 
-The repo is designed to run **locally first** so you can clone it and try the flow on your workstation before wiring CI.
-
-## What it does
-
-AutoArchitector builds a deterministic intermediate model from input sources and renders text-based diagram artifacts.
-
-### Inputs
-
-- Java repositories
-- TypeScript repositories
-- Kubernetes manifests, especially `NetworkPolicy`, `Service`, `Deployment`, `Ingress`
-- optional DB metadata / migration directories
-- optional Yandex Cloud inventory exports or manually prepared topology data
-
-### Outputs
-
-- Mermaid diagrams (`.mmd`)
-- normalized JSON index files
-- optional SVG/PNG if mermaid-cli is installed
+Репозиторий спроектирован для **локального запуска** — клонируй, настрой и проверь на своей машине, до подключения CI.
 
 ---
 
-## Local quick start
+## Что делает AutoArchitector
 
-### 1. Clone
+Строит детерминированную промежуточную модель из исходных данных и генерирует текстовые артефакты диаграмм.
+
+### Входные данные
+
+- Java-репозитории
+- TypeScript-репозитории
+- Kubernetes-манифесты: `NetworkPolicy`, `Service`, `Deployment`, `Ingress`
+- Директории с миграциями БД (Liquibase, Flyway, DDL) — опционально
+- Экспорт инфраструктуры Yandex Cloud или вручную подготовленные данные топологии — опционально
+
+### Результаты
+
+- Mermaid-диаграммы (`.mmd`)
+- Нормализованные JSON-индексы
+- SVG/PNG — опционально, если установлен mermaid-cli
+
+---
+
+## Быстрый старт
+
+### 1. Клонировать репозиторий
 
 ```bash
 git clone https://github.com/bobkovmd/AutoArchitector.git
 cd AutoArchitector
 ```
 
-### 2. Prepare source links
+### 2. Подготовить конфиг
 
-Edit `config/sources.example.yaml` and save your real config as `config/sources.yaml`.
+Скопировать пример и заполнить своими данными:
 
-Put there links or local paths to:
-- original service repositories
-- Kubernetes repo / manifests directory
-- NetworkPolicy files
-- Yandex Cloud exported inventory files
+```bash
+cp config/sources.example.yaml config/sources.yaml
+```
 
-### 3. Run locally with Python
+Указать в `config/sources.yaml`:
+- ссылки или локальные пути к оригинальным репозиториям сервисов
+- репозиторий или директорию с Kubernetes-манифестами
+- конкретные файлы или директории с `NetworkPolicy`
+- файл экспорта топологии Yandex Cloud
+
+### 3. Запустить локально через Python
 
 ```bash
 python3 -m venv .venv
@@ -57,35 +63,44 @@ pip install -r requirements.txt
 python main.py --config config/sources.yaml --output output/
 ```
 
-### 4. Optional SVG rendering
+### 4. Опциональный рендеринг SVG
 
-If Node.js is installed:
+Если установлен Node.js:
 
 ```bash
 npm install
 npm run render
 ```
 
+### 5. Запуск через Docker Compose
+
+Если Python не настроен локально:
+
+```bash
+cp config/sources.example.yaml config/sources.yaml
+# отредактировать config/sources.yaml
+docker compose up
+```
+
 ---
 
-## Repository layout
+## Структура репозитория
 
 ```text
 AutoArchitector/
   config/
-    sources.example.yaml
+    sources.example.yaml        # пример конфига — скопировать в sources.yaml
   docs/
-    architecture.md
+    architecture.md             # описание архитектуры pipeline
   examples/
-    sample-networkpolicy.yaml
-    sample-topology.json
-  output/
+    sample-networkpolicy.yaml   # пример NetworkPolicy
+    sample-topology.json        # пример топологии Yandex Cloud
+  output/                       # сюда попадают сгенерированные артефакты
   src/
     autoarchitector/
-      loaders/
-      parsers/
-      generators/
-      model/
+      loaders/                  # загрузка конфига
+      parsers/                  # парсинг репозиториев и NetworkPolicy
+      generators/               # генерация Mermaid
   main.py
   requirements.txt
   package.json
@@ -94,9 +109,7 @@ AutoArchitector/
 
 ---
 
-## Configuration
-
-Example config:
+## Пример конфига
 
 ```yaml
 project_name: my-landscape
@@ -112,8 +125,9 @@ repositories:
 kubernetes:
   manifests_path: ../platform/k8s
   network_policies:
-    - ../platform/k8s/network-policies/prod
+    - ../platform/k8s/network-policies/test
     - ../platform/k8s/network-policies/demo
+    - ../platform/k8s/network-policies/prod
 cloud:
   provider: yandex_cloud
   topology_file: ./examples/sample-topology.json
@@ -121,49 +135,67 @@ output:
   render_svg: false
 ```
 
----
+### Поля конфига
 
-## Original sources to provide
-
-The project expects you to supply references to the original sources in `config/sources.yaml`:
-
-- service repo URLs or local checkout paths
-- repo or folder containing Kubernetes manifests
-- exact directories/files with `NetworkPolicy`
-- Yandex Cloud topology export, for example VM/network/load balancer inventory in JSON/YAML
-
-Recommended approach:
-
-1. clone all original repos locally side by side;
-2. point AutoArchitector config to local paths;
-3. run parser locally;
-4. inspect `output/` artifacts;
-5. then move to CI.
+| Поле | Описание |
+|---|---|
+| `repositories[].name` | Произвольное имя сервиса |
+| `repositories[].type` | `java` или `typescript` |
+| `repositories[].path` | Локальный путь к checkout |
+| `repositories[].origin` | URL оригинального репозитория (для документации) |
+| `kubernetes.manifests_path` | Директория с Kubernetes-манифестами |
+| `kubernetes.network_policies` | Список директорий или файлов с NetworkPolicy |
+| `cloud.provider` | Провайдер: `yandex_cloud` |
+| `cloud.topology_file` | Путь к JSON/YAML экспорту топологии |
+| `output.render_svg` | `true` — генерировать SVG через mermaid-cli |
 
 ---
 
-## Current status
+## Как подготовить оригинальные данные
 
-This is a **local MVP scaffold**.
+AutoArchitector ожидает, что ты укажешь ссылки/пути к исходным данным в `config/sources.yaml`.
 
-Implemented:
-- config loading
-- Java/TypeScript source inventory
-- Kubernetes NetworkPolicy parser
-- topology merge model
-- Mermaid generation for service graph and network graph
+**Рекомендуемый подход:**
 
-Planned next:
-- deeper AST extraction for Java and TS
-- DB schema extraction from Liquibase/Flyway/DDL
-- Yandex Cloud API loader
-- Structurizr/C4 export
-- sequence diagram generation from controller/service call chains
+1. Склонируй все оригинальные репозитории сервисов рядом с AutoArchitector
+2. Укажи в конфиге локальные пути (`../service-a`, `../platform/k8s` и т.д.)
+3. Запусти парсер локально
+4. Проверь артефакты в `output/`
+5. После проверки — подключи к CI
+
+**Для NetworkPolicy:**
+- укажи директории по окружениям: `test`, `demo`, `prod` — каждую отдельной строкой
+- файлы могут быть вложены произвольно — парсер обходит рекурсивно
+
+**Для Yandex Cloud:**
+- экспортируй инвентарь ресурсов (VM, ALB, VPC, PostgreSQL и т.д.) в JSON или YAML
+- положи файл рядом с репозиторием и укажи путь в `cloud.topology_file`
+- пример структуры — в `examples/sample-topology.json`
 
 ---
 
-## Notes
+## Текущее состояние
 
-- The repo is intentionally local-first and deterministic.
-- Text artifacts are generated first; image rendering is optional.
-- You can keep original repos private and only point to local paths.
+MVP-scaffold, работает локально.
+
+**Реализовано:**
+- загрузка конфига
+- инвентаризация Java/TypeScript-репозиториев
+- парсер Kubernetes NetworkPolicy
+- объединённая промежуточная модель
+- генерация Mermaid: граф сервисов и сетевая топология
+
+**Запланировано:**
+- AST-извлечение для Java (JavaParser) и TypeScript (ts-morph)
+- sequence diagram по цепочкам вызовов controller → service → repository
+- извлечение схемы БД из Liquibase / Flyway / DDL
+- загрузчик Yandex Cloud API / Terraform state
+- экспорт в формат Structurizr / C4
+
+---
+
+## Заметки
+
+- Репозиторий намеренно local-first и детерминированный: одинаковый код всегда даёт одинаковые байты в выходных файлах.
+- Текстовые артефакты генерируются всегда; рендеринг изображений — опционально.
+- Оригинальные репозитории могут оставаться приватными — AutoArchitector работает с локальными checkout.
